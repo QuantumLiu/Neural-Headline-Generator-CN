@@ -20,15 +20,14 @@ def parse_page(num):
     page=requests.get(page_url)
     print('Crawling page :',num)
     text=page.text.encode().decode('unicode-escape')
-    rs={}
-    rs['title']=r'"title":"(.*?)",'
-    rs['url']=r'"url":"(.*?)"'
-    rs['keywords']=r'"keywords":"(.*?)",'
-    rs['abstract']=r'"ext5":"([\s\S]*?)",'
-    for r in rs.keys():
-        news[r]=re.findall(rs[r],text)
+    dic_re={}
+    dic_re['title']=r'"title":"(.*?)",'
+    dic_re['url']=r'"url":"(.*?)"'
+    dic_re['keywords']=r'"keywords":"(.*?)",'
+    dic_re['abstract']=r'"ext5":"([\s\S]*?)",'
+    news={k:re.findall(v,text) for k,v in dic_re.items()}
     news['url']='*&*'.join(news['url']).replace('\\','').split('*&*')#去掉html中的\/字符
-    news_list=[{'title':t,'url':u,'keywords':k,'abstract':a} for t,u,k,a in zip(news['title'],news['url'],news['keywords'],news['abstract'])]
+    news_list=[dict(zip(news.keys(),a)) for a in zip(*list(news.values()))]
     print('Number of news:',len(news_list))
     return news_list
 def max_page(start=2500,stride=10):
@@ -57,7 +56,7 @@ def crawl_p(num_page=0):
     news=sum([result.get() for result in results],[])
     return news
 if __name__=='__main__':
-    news=crawl_p()
+    news=crawl_p(2490)
     with open('sina_news.pkl','wb') as f:
         pickle.dump(news,f)
     
