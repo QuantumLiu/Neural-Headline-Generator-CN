@@ -7,12 +7,14 @@ Created on Wed Jun 14 19:52:03 2017
 """
 
 import requests,re
-import os,time,traceback
 import pickle
 from multiprocessing import Pool,cpu_count,freeze_support
+#爬取新浪新闻的标题、摘要、网址，约5w条
 def get_page(num):
+    #helper函数，格局页数生成固定格式的页面地址
     return ("http://api.roll.news.sina.com.cn/zt_list?channel=news&cat_1=gnxw&cat_2==gdxw1""||=gatxw||=zs-pl||=mtjj&level==1||=2&show_ext=1&show_all=1&show_num=22&tag=1&""format=json&page={}&callback=newsloadercallback").format(str(num))
 def parse_page(num):
+    #分析、爬取信息，返回一个字典的列表，字典的key是title，url，keywords，abstract
     page_url=get_page(num)
     news={}
     page=requests.get(page_url)
@@ -25,11 +27,12 @@ def parse_page(num):
     rs['abstract']=r'"ext5":"([\s\S]*?)",'
     for r in rs.keys():
         news[r]=re.findall(rs[r],text)
-    news['url']='*&*'.join(news['url']).replace('\\','').split('*&*')
+    news['url']='*&*'.join(news['url']).replace('\\','').split('*&*')#去掉html中的\/字符
     news_list=[{'title':t,'url':u,'keywords':k,'abstract':a} for t,u,k,a in zip(news['title'],news['url'],news['keywords'],news['abstract'])]
     print('Number of news:',len(news_list))
     return news_list
 def max_page(start=2500,stride=10):
+    #寻找最大页数，从start按stride递减
     r_count=r'"count":"(.*?)",'
     for num in list(range(0,start,stride))[::-1]:
         text=requests.get(get_page(num)).text.encode().decode('unicode-escape')
@@ -41,6 +44,7 @@ def max_page(start=2500,stride=10):
     raise 'Eorror:No max page found!'
     return 0
 def crawl_p(num_page=0):
+    #多线程爬取
     if not num_page:
         num_page=max_page()
     results=[]
