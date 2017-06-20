@@ -15,4 +15,4 @@ def cut(utext):
     words=jieba.lcut(utext)
     return words
 def get_inverse(words):
-    return np.unique(aw,return_counts=True,return_index=True,return_inverse=True)
+    return np.unique(np.array(words),return_counts=True,return_inverse=True)
