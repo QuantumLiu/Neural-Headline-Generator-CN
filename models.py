@@ -19,11 +19,11 @@ def r2r(dic_len,input_length,output_length,emb_dim=128,hidden=512,deepth=(1,1)):
     model.add(TimeDistributed(Dense(units=dic_len, activation='softmax')))
     model.compile(optimizer='rmsprop',loss='categorical_crossentropy',metrics=['acc'])
     return model
-def c2r(dic_len,input_length,output_length,emb_dim=128,hidden=512,deepth=(1,1),stride=3):
+def c2r(dic_len,input_length,output_length,emb_dim=128,hidden=512,nb_filter=64,deepth=(1,1),stride=3):
     model = Sequential()
     model.add(Embedding(input_dim=dic_len, output_dim=emb_dim, input_length=input_length))
     for l in range(deepth[0]):
-        model.add(Conv1D(hidden,3,activation='relu'))
+        model.add(Conv1D(nb_filter,stride,activation='relu'))
     model.add(GlobalMaxPooling1D())
     model.add(Dropout(0.5))
     model.add(RepeatVector(output_length))
