@@ -84,6 +84,8 @@ if __name__ == '__main__':
     nb_train=int(np.floor(nb_samples*(1-val_split)))
     train_data,train_label=udata[perm[:nb_train]],ulabel[perm[:nb_train]]
     val_data,val_label=udata[perm[nb_train:]],ulabel[perm[nb_train:]]
+    with open('dic.pkl','wb') as f:
+        pickle.dump(udic,f)
     with h5py.File('data_train.h5','w') as f:
         f.create_dataset('y',data=train_label)
         f.create_dataset('x',data=train_data)

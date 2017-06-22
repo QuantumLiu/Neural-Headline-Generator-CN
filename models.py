@@ -17,7 +17,7 @@ def r2r(dic_len,input_length,output_length,emb_dim=128,hidden=512,deepth=(1,1)):
     for l in range(deepth[0]):
         model.add(LSTM(hidden, return_sequences=True))
     model.add(TimeDistributed(Dense(units=dic_len, activation='softmax')))
-    model.compile(loss='categorical_crossentropy', optimizer='adam')
+    model.compile(optimizer='rmsprop',loss='categorical_crossentropy',metrics=['acc'])
     return model
 def c2r(dic_len,input_length,output_length,emb_dim=128,hidden=512,deepth=(1,1),stride=3):
     model = Sequential()
@@ -30,5 +30,5 @@ def c2r(dic_len,input_length,output_length,emb_dim=128,hidden=512,deepth=(1,1),s
     for l in range(deepth[0]):
         model.add(LSTM(hidden, return_sequences=True))
     model.add(TimeDistributed(Dense(units=dic_len, activation='softmax')))
-    model.compile(loss='categorical_crossentropy', optimizer='adam')
+    model.compile(optimizer='rmsprop',loss='categorical_crossentropy',metrics=['acc'])
     return model
