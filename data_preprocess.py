@@ -68,6 +68,7 @@ def get_inverse(words,udic,sp_ch='\n'):
         inverse.append([udic.get(w,0) for w in s])
     return pad_sequences(inverse,padding='post')
 if __name__ == '__main__':
+    val_split=0.2
     with open('sina_news.pkl','rb')as f:
         news=pickle.load(f)
     ct=cut(num_sub(get_text(news,'title')))
@@ -75,9 +76,19 @@ if __name__ == '__main__':
     uwords=ca+ct
     udic=get_dic(uwords)
     print('There are ',len(uwords),' words.\n',len(udic),' unique tokens.')
-    aa=get_inverse(ca,udic)
-    at=get_inverse(ct,udic)
-    with h5py.File('data.h5','w') as f:
-        f.create_dataset('y',data=aa)
-        f.create_dataset('x',data=at)
-    print('There are ',aa.shape[0],' samples.')
+    udata=get_inverse(ca,udic)
+    ulabel=get_inverse(ct,udic)
+    nb_samples=udata.shape[0]
+    print('There are '+str(nb_samples)+' samples')
+    perm=np.random.permutation(nb_samples)
+    nb_train=int(np.floor(nb_samples*(1-val_split)))
+    train_data,train_label=udata[perm[:nb_train]],ulabel[perm[:nb_train]]
+    val_data,val_label=udata[perm[nb_train:]],ulabel[perm[nb_train:]]
+    with h5py.File('data_train.h5','w') as f:
+        f.create_dataset('y',data=train_label)
+        f.create_dataset('x',data=train_data)
+    with h5py.File('data_val.h5','w') as f:
+        f.create_dataset('y',data=val_label)
+        f.create_dataset('x',data=val_data)
+    print('There are ',train_data.shape[0],' samples for training.')
+    print('There are ',val_data.shape[0],' samples for validation.')
