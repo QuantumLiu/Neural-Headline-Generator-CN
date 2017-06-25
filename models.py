@@ -9,7 +9,7 @@ from keras.layers import Input,Embedding,TimeDistributed,LSTM,GlobalMaxPooling1D
 from keras.models import Sequential,Model
 def r2r(dic_len,input_length,output_length,emb_dim=128,hidden=512,deepth=(1,1)):
     model = Sequential()
-    model.add(Embedding(input_dim=dic_len, output_dim=emb_dim, input_length=input_length))
+    model.add(Embedding(input_dim=dic_len, mask_zero=True, output_dim=emb_dim, input_length=input_length))
     for l in range(deepth[0]):
         model.add(LSTM(output_dim=hidden, return_sequences=(False if l==deepth[0]-1 else True)))
     model.add(RepeatVector(output_length))
@@ -23,7 +23,7 @@ def c2r(dic_len,input_length,output_length,emb_dim=128,hidden=512,nb_filter=64,d
     model = Sequential()
     model.add(Embedding(input_dim=dic_len, output_dim=emb_dim, input_length=input_length))
     for l in range(deepth[0]):
-        model.add(Conv1D(nb_filter,stride,activation='relu'))
+        model.add(Conv1D(nb_filter,3,activation='relu'))
     model.add(GlobalMaxPooling1D())
     model.add(Dropout(0.5))
     model.add(RepeatVector(output_length))

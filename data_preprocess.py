@@ -66,7 +66,9 @@ def get_inverse(words,udic,sp_ch='\n'):
     inverse=[]
     for s in sentences:
         inverse.append([udic.get(w,0) for w in s])
-    return pad_sequences(inverse,padding='post')
+    lens=[len(i) for i in inverse]
+    maxlen=int(np.std(lens)+np.mean(lens))
+    return pad_sequences(inverse,maxlen=maxlen,padding='post')    
 if __name__ == '__main__':
     val_split=0.2
     with open('sina_news.pkl','rb')as f:

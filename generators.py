@@ -21,5 +21,5 @@ def data_gen(filename,dic_len,batch_size):
          start=int(np.random.randint(index_max,size=1))
          data=datas[start:start+batch_size]
          label=to_categorical(labels[start:start+batch_size],dic_len)
-         label=label.reshape((batch_size,-1,label.shape[-1]))
+         label=label.astype('int8').reshape((batch_size,-1,label.shape[-1]))
          yield (data,label)
