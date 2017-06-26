@@ -1,123 +1,71 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sun Jun 25 23:34:07 2017
+Created on Mon Jun 26 18:00:01 2017
 
 @author: Quantum Liu
 """
-
-import re,requests,traceback,pickle
+#crawling by search an arabic character 'ا' which has the highest frequency of use.
+import re,requests,traceback,pickle,time
 from multiprocessing import Pool,cpu_count,freeze_support
-class category():
-    def __init__(self,name,url):
-        self.name=name
-        self.url=url
-        self.ua={'use-agent':"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36"}
-        try:
-            self.res=requests.get(self.url,self.ua)
-        except:
-            traceback.print_exc()
-        self.params,self.max_page=get_params(self.res)
-        self.lm_root='http://www.aljazeera.net/Services/GetLoadMoreArticlesFromNewsSite?SectionID={sectionId}&EntityID={eId}&ResourceID={oId}'.format(**self.params)+'&PageNo={n}&PageSize=11&layout=~/Views/Shared/News/shared/areas/services/LoadMoreNews.cshtml'
-        self.lms=[self.lm_root.format(n=n) for n in range(self.max_page)]
-        self.articels=[]
-        self.log=''
-    def cur_no(self,lm):
-        return int(re.findall(r'&PageNo=(\d*?)&PageSize',lm)[0])
-    def process(self,lm):
-        r_title=r'<h2><a href="/news.*?">(.*?)</a></h2>'
-        r_url=r'<h2><a href="/news(.*?)">.*?</a></h2>'
-        r_ab=r'<p class="greta">(.*?)</p>'
-        r_img=r'<img src="(.*?)" alt="[\s\S]*?">'
-        news_root='http://www.aljazeera.net/news'
-        img_root='http://www.aljazeera.net'
-        print('Crawling category : {cat},page {cur} of {m} .'.format(cat=self.name,cur=self.cur_no(lm),m=self.max_page))
-        try:
-            text=requests.get(lm,headers=self.ua).text
-            titles,abstracts=([s.replace('&quot;','"').strip() for s in re.findall(r,text)] for r in [r_title,r_ab])
-            urls=[news_root+s.replace('&quot;','"').strip() for s in re.findall(r_url,text)]
-            imgs=[img_root+s.replace('&quot;','"').strip() for s in re.findall(r_img,text)]
-            return [{'title':t,'abstract':ab,'url':u,'img':i} for t,ab,u,i in zip(titles,abstracts,urls,imgs)]
-        except TypeError:
-            log=traceback.format_exc()
-            self.log+=log
-            print(log)
-            return []
-    def crawl_s(self):
-        self.articels+=[self.process(lm) for lm in self.lms]
-        return self.articels
-    def crawl_p(self):
-        results=[]
-        freeze_support()
-        mp=Pool(min(8,max(cpu_count(),4)))
-        for lm in self.lms:
-            results.append(mp.apply_async(self.process,(lm,)))
-        mp.close()
-        mp.join()
-        self.articels+=sum([result.get() for result in results],[])
-        return self.articels
-    def update(self):
-        new_lm=self.lm_root.format(n=1)
-        new_articels=self.process(new_lm)
-        self.articels=new_articels+self.articels
-        return new_articels
-class aljazeera():
-    def __init__(self):
-        self.categories={name:category(name,url) for name,url in get_cats().items()}
-        self.articels=[]
-    def crawl(self,mode=0):
-        if mode==0:#parallel in cats
-            freeze_support()
-            mp=Pool(min(8,max(cpu_count(),4)))
-            for cat in self.categories.values():
-                mp.apply_async(cat.crawl_s,())
-            mp.close()
-            mp.join()
-        elif mode==1:#serial in cats
-            for cat in self.categories.values():
-                cat.crawl_p()
-        elif mode==2:#serial
-            for cat in self.categories.values():
-                cat.crawl_s()
-    def update(self,mode):
-        if mode==0:#parallel in cats
-            freeze_support()
-            mp=Pool(min(8,max(cpu_count(),4)))
-            for cat in self.categories.values():
-                mp.apply_async(cat.update,())
-            mp.close()
-            mp.join()
-        elif mode==1:#serial
-            for cat in self.categories.values():
-                cat.update()
-    def get_articels(self):
-        self.articels=sum([cat.articels for cat in self.categories],[])+self.articels
-        return self.articels
-    def save(self,path='aljweb.pkl',dump_all=True):
-        with open(path,'wb') as f :
-            if dump_all:
-                print('Dumping aljazeera web site object...')
-                pickle.dump(self,f)
-            else:
-                print('Dumping aljazeera web site object...')
-                pickle.dump(self.categories,f)
-def get_cats(portal='http://www.aljazeera.net/portal',root='http://www.aljazeera.net'):
-    headers={'use-agent':"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36"}
-    r_sec=r'<a href="/news">([\s\S]*?)<div class="rightMenu borderedRight">'
-    r_cat_u=r'<li><a href="(/news/.*?)">.*?</a></li>\r\n'
-    r_cat_n=r'<li><a href="/news/(.*?)">.*?</a></li>\r\n'
-    res=requests.get(portal,headers=headers)
-    t=''.join(re.findall(r_sec,res.text))
-    cats_dic=dict(zip(re.findall(r_cat_n,t),[root+u for u in re.findall(r_cat_u,t)]))
-    print('There are :'+str(len(cats_dic))+' categories.\n',cats_dic)
-    return cats_dic
-def get_params(cat_res):
-    p_l=['eId','oId','sectionId']
-    r_root=r'<input id="{param}" type="hidden" value="(.*?)"'
-    params={p:re.findall(r_root.format(param=p),cat_res.text)[0].strip() for p in p_l}
-    tm=dict(cat_res.headers.items()).get('Cache-Control')[8:]
-    max_page=int(tm if tm else 0)
-    return params,max_page
+def get_maxindex(page,per=12):
+    r_total=r'<total>(\d*?)</total>'
+    ua={'use-agent':"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36"}
+    res=requests.get(page,headers=ua)
+    res.encoding='utf-8'
+    total=int(re.findall(r_total,res.text)[0])
+    max_index=int(total/per)*per
+    print('Max index : '+str(max_index))
+    return max_index
+def it_page(per=12):
+    root='http://search1.aljazeera.net/search.htm?all=%D8%A7&output=xml&hitsPerPage=12&start={start}&exfilter=metatag.site:57258A24E91A42B0B2399DCCF49CF8C1&filter=-id:*learning.aljazeera*&return=content_arabic;url;metatag.publishdt;metatag.title;metatag.site;metatag.channel;metatag.image;metatag.newimage;metatag.newstopics;metatag.description_arabic'
+    max_index=get_maxindex(root.format(start=48),per)
+    pages=(root.format(start=s) for s in range(0,max_index,per))
+    return pages
+def pad(l,m=12):
+    if len(l)<m:
+        l+=[(l if l else [''])[-1]]*(m-len(l))
+    return l
+def parse(page):
+    r_start=r'&start=(\d*?)&'
+    start=int(re.findall(r_start,page)[0])
+    keys=['image','title','description_arabic']
+    img_root='http://www.aljazeera.net/File/GetImageCustom/'
+    r_root=r'<metatag.{key} type=[^>]*?><!\[CDATA\[(.*?)\]\]></metatag.{key}>'
+    r_url=r'<url type=\'\'><!\[CDATA\[(.*?)\]\]></url>'
+    r_dic={k:r_root.format(key=k) for k in keys}
+    r_dic['url']=r_url
+    ua={'use-agent':"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36"}
+    res=requests.get(page,headers=ua)
+    res.encoding='utf-8'
+    data={k:re.findall(v,res.text) for k,v in r_dic.items()}
+    data['image']=[img_root+n for n in data.get('image')]
+    keys=list(data.keys())
+    datas=[data.get(key) for key in keys]
+    m=max(map(lambda x:len(x),datas))
+    print('Crawling : {start} to {end}'.format(start=start,end=start+m))
+    datas=[pad(l,m) for l in datas]
+    z=zip(*datas)
+    articels=[dict(zip(keys,d)) for d in z]
+    print('Got {l} articels'.format(l=len(articels)))
+    if not articels:
+        print('Error,no articels got.\nxml text: '+res.text)
+        print(''.join([data.get(key) for key in keys]))
+    return articels
+def crawl_s():
+    return [parse(p) for p in it_page()]
+def crawl_p():
+    results=[]
+    freeze_support()
+    mp=Pool(min(8,max(cpu_count(),4)))
+    for page in it_page():
+        results.append(mp.apply_async(parse,(page,)))
+    mp.close()
+    mp.join()
+    articels=sum([result.get() for result in results],[])
+    return articels
 if __name__=='__main__':
-    alj=aljazeera()
-    alj.crawl()
-    alj.save()
+    s=time.time()
+    ars=crawl_s()
+    print('Crawling finished, got {n} articels, cost :{dur} seconds.'.format(n=len(ars),dur=time.time()-s))
+    with open('alj.pkl','wb') as f:
+        pickle.dump(ars,f)
