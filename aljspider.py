@@ -21,35 +21,35 @@ def it_page(per=12):
     max_index=get_maxindex(root.format(start=48),per)
     pages=(root.format(start=s) for s in range(0,max_index,per))
     return pages
-def pad(l,m=12):
-    if len(l)<m:
-        l+=[(l if l else [''])[-1]]*(m-len(l))
-    return l
+def l2dl(l):
+    keys=['title','description_arabic','image','url']
+    img_root='http://www.aljazeera.net/File/GetImageCustom/'
+    dl=[dict().fromkeys(keys,'')]
+    for k,v in l:
+        d=dl[-1]
+        if not d.get(k,False):
+            d[k]=re.sub(r'</*em>','"',(img_root+v if k=='image' else v))
+            dl[-1]=d
+        else:
+            dn=dict().fromkeys(keys,'')
+            dn[k]=re.sub(r'</*em>','"',(img_root+v if k=='image' else v))
+            dl.append(dn)
+    return dl
 def parse(page):
     r_start=r'&start=(\d*?)&'
     start=int(re.findall(r_start,page)[0])
-    keys=['image','title','description_arabic']
-    img_root='http://www.aljazeera.net/File/GetImageCustom/'
-    r_root=r'<metatag.{key} type=[^>]*?><!\[CDATA\[(.*?)\]\]></metatag.{key}>'
-    r_url=r'<url type=\'\'><!\[CDATA\[(.*?)\]\]></url>'
-    r_dic={k:r_root.format(key=k) for k in keys}
-    r_dic['url']=r_url
+    keys=['title','description_arabic','image','url']
+    r_data=r'<(?:metatag\.)*?(?:{p})+?[^>]*?><!\[CDATA\[(.*?)\]\]></(?:metatag\.)*?({p})>'.format(p='|'.join(keys))
     ua={'use-agent':"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36"}
     res=requests.get(page,headers=ua)
     res.encoding='utf-8'
-    data={k:re.findall(v,res.text) for k,v in r_dic.items()}
-    data['image']=[img_root+n for n in data.get('image')]
-    keys=list(data.keys())
-    datas=[data.get(key) for key in keys]
-    m=max(map(lambda x:len(x),datas))
-    print('Crawling : {start} to {end}'.format(start=start,end=start+m))
-    datas=[pad(l,m) for l in datas]
-    z=zip(*datas)
-    articels=[dict(zip(keys,d)) for d in z]
-    print('Got {l} articels'.format(l=len(articels)))
+    datas=[(i[1].replace('metatag.',''),i[0]) for i in re.findall(r_data,res.text)]
+    articels=l2dl(datas)
+    l=len(articels)
+    print('Crawling : {start} to {end}'.format(start=start,end=start+l))
+    print('Got {l} articels'.format(l=l))
     if not articels:
         print('Error,no articels got.\nxml text: '+res.text)
-        print(''.join([data.get(key) for key in keys]))
     return articels
 def crawl_s():
     return [parse(p) for p in it_page()]
@@ -65,7 +65,7 @@ def crawl_p():
     return articels
 if __name__=='__main__':
     s=time.time()
-    ars=crawl_s()
+    ars=crawl_p()
     print('Crawling finished, got {n} articels, cost :{dur} seconds.'.format(n=len(ars),dur=time.time()-s))
     with open('alj.pkl','wb') as f:
         pickle.dump(ars,f)
